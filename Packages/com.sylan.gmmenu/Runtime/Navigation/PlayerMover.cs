@@ -1,5 +1,6 @@
 ﻿
 using System;
+using Sylan.GMMenu.Utils;
 using UdonSharp;
 using UnityEngine;
 using UnityEngine.UI;
@@ -116,7 +117,6 @@ namespace Sylan.GMMenu
                 offset += speedVertical * (headVector * Vector3.up);
                 offset *= speedMagnitude * Time.deltaTime;
                 station.position += offset;
-                //localPlayer.TeleportTo(
                 Teleport(
                     localPlayer,
                     station.position,
@@ -127,7 +127,6 @@ namespace Sylan.GMMenu
             }
             if (!menuToggle.MenuState())
             {
-                //localPlayer.TeleportTo(
                 Teleport(
                     localPlayer,
                     station.position,

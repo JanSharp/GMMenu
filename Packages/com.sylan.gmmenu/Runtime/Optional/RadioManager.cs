@@ -1,7 +1,8 @@
-﻿#if SYLAN_AUDIOMANAGER
-using Sylan.AudioManager;
+﻿#if SYLAN_AUDIOMANAGER_VERSION || (COMPILER_UDONSHARP && SYLAN_AUDIOMANAGER)
+// See VoiceModeManager for an explanation for the condition above.
+#define AUDIOMANAGER
 #endif
-using Sylan.GMMenu;
+
 using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Data;
@@ -12,17 +13,17 @@ namespace Sylan.AudioManager
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class RadioManager : UdonSharpBehaviour
     {
-#if SYLAN_AUDIOMANAGER
-        [HideInInspector,SerializeField] public AudioSettingManager audioSettingManager;
-        public const string AudioSettingManagerPropertyName = nameof(audioSettingManager);
-#else
-        [HideInInspector, SerializeField] public AudioSettingManager audioSettingManager = null;
-        public const string AudioSettingManagerPropertyName = null;
-#endif
+        public GameObject RadioButton;
 
-        [HideInInspector, SerializeField] private Radio[] Radios;
-        public const string RadioChannelsPropertyName = nameof(Radios);
+        public const int RADIO_CHANNEL_PRIORITY = 900;
+        public const string RADIO_CHANNEL_SETTING_ID = "RADIOVOICESETTINGS";
+
+        private Radio[] radios;
         [HideInInspector] public Radio localRadio;
+
+#if AUDIOMANAGER
+        [HideInInspector, SerializeField] public AudioSettingManager audioSettingManager;
+        public const string AudioSettingManagerPropertyName = nameof(audioSettingManager);
 
         [Header("Set AudioSetting when in the same channel")]
         [SerializeField] private float voiceGain = 0.0f;
@@ -31,11 +32,8 @@ namespace Sylan.AudioManager
         [SerializeField] private float volumetricRadius = AudioSettingManager.DEFAULT_VOICE_VOLUMETRIC_RADIUS;
         [SerializeField] private bool voiceLowpass = false;
 
-
         //Key:playerID -> int channelNumber
         DataDictionary _RadioChannelDict = new DataDictionary();
-        public const int RADIO_CHANNEL_PRIORITY = 900;
-        public const string RADIO_CHANNEL_SETTING_ID = "RADIOVOICESETTINGS";
         DataList RadioChannelAudioSettings = new DataList()
         {
             0.0f, //Voice Gain
@@ -44,14 +42,26 @@ namespace Sylan.AudioManager
             AudioSettingManager.DEFAULT_VOICE_VOLUMETRIC_RADIUS,
             false
         };
+#endif
 
-        public GameObject RadioButton;
+        private void DestroySelf()
+        {
+            Destroy(RadioButton);
+            Destroy(gameObject);
+        }
+
+#if !AUDIOMANAGER
         private void Start()
         {
-            if(audioSettingManager == null)
+            DestroySelf();
+        }
+#else
+        private void Start()
+        {
+            if (audioSettingManager == null)
             {
-                Destroy(RadioButton);
-                Destroy(gameObject);
+                DestroySelf();
+                radios = new Radio[0]; // Prevent potential errors since Destroy is not instant.
                 return;
             }
             RadioChannelAudioSettings[AudioSettingManager.VOICE_GAIN_INDEX] = voiceGain;
@@ -59,8 +69,8 @@ namespace Sylan.AudioManager
             RadioChannelAudioSettings[AudioSettingManager.RANGE_FAR_INDEX] = voiceRangeFar;
             RadioChannelAudioSettings[AudioSettingManager.VOLUMETRIC_RADIUS_INDEX] = volumetricRadius;
             RadioChannelAudioSettings[AudioSettingManager.VOICE_LOWPASS_INDEX] = voiceLowpass;
-            
-            Radios = GetComponentsInChildren<Radio>();
+
+            radios = GetComponentsInChildren<Radio>();
         }
 
         //
@@ -103,7 +113,7 @@ namespace Sylan.AudioManager
                 Debug.LogError("[RadioManager] Failed to remove RadioChannel for " + player.displayName + "-" + player.playerId.ToString());
             }
             Debug.Log("[RadioManager] Removed RadioChannel for " + player.displayName + "-" + player.playerId.ToString());
-            
+
             return value.Int;
         }
         public override void OnPlayerJoined(VRCPlayerApi joiningPlayer)
@@ -133,7 +143,7 @@ namespace Sylan.AudioManager
         }
         private void SetRadioOwnership(VRCPlayerApi player)
         {
-            foreach (Radio radio in Radios)
+            foreach (Radio radio in radios)
             {
                 if (radio.owner != null) continue;
 
@@ -144,7 +154,7 @@ namespace Sylan.AudioManager
         }
         private void RevokeRadioOwnership(VRCPlayerApi player)
         {
-            foreach (Radio radio in Radios)
+            foreach (Radio radio in radios)
             {
                 if (radio.owner != player) continue;
 
@@ -162,11 +172,11 @@ namespace Sylan.AudioManager
         //
         public void EnterRadioChannel(VRCPlayerApi player, int channelID)
         {
-            _RadioChannelDict.SetValue(player.playerId,channelID);
+            _RadioChannelDict.SetValue(player.playerId, channelID);
         }
         public void ExitRadioChannel(VRCPlayerApi player)
         {
-            _RadioChannelDict.SetValue(player.playerId,0);
+            _RadioChannelDict.SetValue(player.playerId, 0);
         }
         public bool InRadioChannel(VRCPlayerApi player, int channelID)
         {
@@ -228,10 +238,13 @@ namespace Sylan.AudioManager
         public void SetChannel1()
         {
             if (!Utilities.IsValid(localRadio)) return;
-            if(localRadio.channel == 1) localRadio.ExitChannel();
+            if (localRadio.channel == 1) localRadio.ExitChannel();
             else localRadio.EnterChannel(1);
         }
+#endif
     }
+
+#if AUDIOMANAGER
     public static class RadioManagerExtensions
     {
         //
@@ -257,4 +270,5 @@ namespace Sylan.AudioManager
         //
         //
     }
+#endif
 }
