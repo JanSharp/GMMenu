@@ -5,6 +5,7 @@
         "VRC.SDK3",
         "VRC.SDKBase",
         "com.sylan.audiomanager",
+        "JanSharp.Common",
         "UdonSharp.Runtime",
         "UdonSharp.Editor",
         "UdonSharp.Lib",

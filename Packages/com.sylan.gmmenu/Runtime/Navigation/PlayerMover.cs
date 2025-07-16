@@ -1,5 +1,6 @@
-﻿
-using System;
+﻿using System;
+using JanSharp;
+using JanSharp.Internal;
 using Sylan.GMMenu.Utils;
 using UdonSharp;
 using UnityEngine;
@@ -11,6 +12,7 @@ using VRC.Udon.Common;
 namespace Sylan.GMMenu
 {
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
+    [SingletonDependency(typeof(TrulyPostLateUpdateManager))]
     public class PlayerMover : GMMenuPart
     {
         VRCPlayerApi localPlayer;
@@ -21,7 +23,7 @@ namespace Sylan.GMMenu
         bool jumpPressed = false;
 
         public float speedMagnitude = 8.0f;
-        float speedLongitudinal= 0.0f;
+        float speedLongitudinal = 0.0f;
         float speedHorizontal = 0.0f;
         float speedVertical = 0.0f;
 
@@ -31,6 +33,7 @@ namespace Sylan.GMMenu
         public Toggle useRoomAlignedToggle;
         public Toggle useRoomAlignedWithCorrectionToggle;
         public Toggle useRoomAlignedWithMathToggle;
+        public Toggle useTrulyPostLateUpdateToggle;
 
 
         Quaternion headVector;
@@ -83,7 +86,7 @@ namespace Sylan.GMMenu
                 _noclip = value;
                 if (value)
                 {
-                    station.SetParent(null,false);
+                    station.SetParent(null, false);
                     station.position = localPlayer.GetPosition();
                     boxCollider.enabled = true;
                     localPlayer.SetGravityStrength(0);
@@ -93,16 +96,23 @@ namespace Sylan.GMMenu
                     boxCollider.enabled = false;
                     localPlayer.SetGravityStrength(1);
                     localPlayer.SetVelocity(Vector3.zero);
-                    station.SetParent(transform,false);
+                    station.SetParent(transform, false);
                     station.localPosition = Vector3.zero;
                     station.rotation = Quaternion.identity;
                 }
             }
             get => _noclip;
         }
+        [OnTrulyPostLateUpdate]
+        public void OnTrulyPostLateUpdate()
+        {
+            if (useTrulyPostLateUpdateToggle.isOn)
+                UpdateStationPosition();
+        }
         void Update()
         {
-            UpdateStationPosition();
+            if (!useTrulyPostLateUpdateToggle.isOn)
+                UpdateStationPosition();
         }
         public void UpdateStationPosition()
         {
@@ -137,16 +147,27 @@ namespace Sylan.GMMenu
             }
             localPlayer.SetVelocity(Vector3.zero);
             return;
-
         }
 
         private void Teleport(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRotation, bool lerpOnRemote)
         {
             if (usePlayerAlignedToggle.isOn)
             {
-                player.TeleportTo(teleportPos, teleportRotation, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+                TeleportRoomAligned(player, teleportPos, teleportRotation, lerpOnRemote);
             }
             else if (usePlayerAlignedWithCorrectionToggle.isOn)
+            {
+                TeleportPlayerAndRoomAligned(player, teleportPos, teleportRotation, lerpOnRemote);
+            }
+            else if (usePlayerAlignedWithMathToggle.isOn)
+            {
+                TeleportPlayerAndRoomAlignedCalcOffsetAfterTP(player, teleportPos, teleportRotation, lerpOnRemote);
+            }
+            else if (useRoomAlignedToggle.isOn)
+            {
+                TeleportPlayerAlignedCorrectiveHead(player, teleportPos, lerpOnRemote);
+            }
+            else if (useRoomAlignedWithCorrectionToggle.isOn)
             {
                 player.TeleportTo(teleportPos, teleportRotation, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
                 player.TeleportTo(
@@ -155,86 +176,32 @@ namespace Sylan.GMMenu
                     VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint,
                     lerpOnRemote);
             }
-            else if (usePlayerAlignedWithMathToggle.isOn)
-            {
-                TeleportPlayerAlignedWithMath(player, teleportPos, teleportRotation, lerpOnRemote);
-            }
-            else if (useRoomAlignedToggle.isOn)
-            {
-                player.TeleportTo(teleportPos, teleportRotation, VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint, lerpOnRemote);
-            }
-            else if (useRoomAlignedWithCorrectionToggle.isOn)
-            {
-                player.TeleportTo(teleportPos, teleportRotation, VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint, lerpOnRemote);
-                player.TeleportTo(
-                    teleportPos,
-                    Quaternion.Inverse(localPlayer.GetRotation()) * teleportRotation * teleportRotation,
-                    VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint,
-                    lerpOnRemote);
-            }
             else if (useRoomAlignedWithMathToggle.isOn)
             {
-                TeleportRoomAligned(player, teleportPos, teleportRotation, lerpOnRemote);
+                player.TeleportTo(teleportPos, teleportRotation, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+                // TeleportRoomAndPlayerAligned(player, teleportPos, teleportRotation, lerpOnRemote);
             }
         }
 
-        public void TeleportCorrective(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRotation, bool lerpOnRemote)
-        {
-            //This function teleports the player,
-            //calculates the difference between the expected rotation and the actual rotation resulting from the teleport.
-            //then teleports the player again to compensate for the error.
-            //This is temporary patch for a problem where noclip causes one to spin rapidly, until I can figure out what is causing this to happen
-            player.TeleportTo(
-                teleportPos,
-                teleportRotation,
-                VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint,
-                lerpOnRemote
-                );
-            player.TeleportTo(teleportPos,
-                Quaternion.Inverse(localPlayer.GetRotation()) * teleportRotation * teleportRotation,
-                VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint,
-                lerpOnRemote);
-        }
+        // private void TeleportCorrective(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRotation, bool lerpOnRemote)
+        // {
+        //     //This function teleports the player,
+        //     //calculates the difference between the expected rotation and the actual rotation resulting from the teleport.
+        //     //then teleports the player again to compensate for the error.
+        //     //This is temporary patch for a problem where noclip causes one to spin rapidly, until I can figure out what is causing this to happen
+        //     player.TeleportTo(
+        //         teleportPos,
+        //         teleportRotation,
+        //         VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint,
+        //         lerpOnRemote
+        //         );
+        //     player.TeleportTo(teleportPos,
+        //         Quaternion.Inverse(localPlayer.GetRotation()) * teleportRotation * teleportRotation,
+        //         VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint,
+        //         lerpOnRemote);
+        // }
 
-        public void TeleportPlayerAlignedWithMath(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRot, bool lerpOnRemote)
-        {
-            //This could be simplified to have fewer intermediate variables, but separating it out like this makes it more readable for educational purposes.
-            //Feel free to modify to create a more optimized version.
-
-#if UNITY_EDITOR
-            // Skip process and Exit early for ClientSim
-            // since there is no play space to orient.
-            player.TeleportTo(teleportPos, teleportRot);
-            return;
-#endif
-
-            // teleportRot = Quaternion.Euler(0, teleportRot.eulerAngles.y, 0);
-
-            //Get player pos/rot
-            Vector3 playerPos = player.GetPosition();
-            Quaternion playerRot = player.GetRotation();
-            Quaternion invPlayerRot = Quaternion.Inverse(playerRot);
-
-            //Get origin pos/rot
-            VRCPlayerApi.TrackingData origin = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Origin);
-            Vector3 originPos = origin.position;
-            Quaternion originRot = origin.rotation;
-
-            //Subtract player from origin in order to get the offset from the player to the origin
-            //offset = origin - player
-            Vector3 offsetPos = originPos - playerPos;
-            Quaternion offsetRot = invPlayerRot * originRot;
-
-            //Add the offset onto the destination in order to construct a pos/rot of where your origin would be in order to put the player at the destination
-            //target = destination + offset
-            Vector3 targetPos = teleportPos + teleportRot * invPlayerRot * offsetPos;
-            Quaternion targetRot = teleportRot * offsetRot;
-
-            //Apply teleportation
-            player.TeleportTo(targetPos, targetRot, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
-        }
-
-        public void TeleportRoomAligned(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRot, bool lerpOnRemote)
+        private void TeleportRoomAligned(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRot, bool lerpOnRemote)
         {
             //This could be simplified to have fewer intermediate variables, but separating it out like this makes it more readable for educational purposes.
             //Feel free to modify to create a more optimized version.
@@ -270,6 +237,152 @@ namespace Sylan.GMMenu
 
             //Apply teleportation
             player.TeleportTo(targetPos, targetRot, VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint, lerpOnRemote);
+        }
+
+        private void TeleportPlayerAndRoomAligned(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRot, bool lerpOnRemote)
+        {
+            //This could be simplified to have fewer intermediate variables, but separating it out like this makes it more readable for educational purposes.
+            //Feel free to modify to create a more optimized version.
+
+#if UNITY_EDITOR
+            // Skip process and Exit early for ClientSim
+            // since there is no play space to orient.
+            player.TeleportTo(teleportPos, teleportRot);
+            return;
+#endif
+
+            // teleportRot = Quaternion.Euler(0, teleportRot.eulerAngles.y, 0);
+
+            //Get player pos/rot
+            Vector3 playerPos = player.GetPosition();
+            Quaternion playerRot = player.GetRotation();
+            Quaternion invPlayerRot = Quaternion.Inverse(playerRot);
+
+            //Get origin pos/rot
+            VRCPlayerApi.TrackingData origin = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Origin);
+            Vector3 originPos = origin.position;
+            Quaternion originRot = origin.rotation;
+
+            //Subtract player from origin in order to get the offset from the player to the origin
+            //offset = origin - player
+            Vector3 offsetPos = originPos - playerPos;
+            Quaternion offsetRot = invPlayerRot * originRot;
+
+            //Add the offset onto the destination in order to construct a pos/rot of where your origin would be in order to put the player at the destination
+            //target = destination + offset
+            Vector3 targetPos = teleportPos + teleportRot * invPlayerRot * offsetPos;
+            Quaternion targetRot = teleportRot * offsetRot;
+
+            //Apply teleportation
+            player.TeleportTo(targetPos, targetRot, VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint, lerpOnRemote);
+            player.TeleportTo(teleportPos, teleportRot, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+        }
+
+//         private void TeleportRoomAndPlayerAligned(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRot, bool lerpOnRemote)
+//         {
+//             //This could be simplified to have fewer intermediate variables, but separating it out like this makes it more readable for educational purposes.
+//             //Feel free to modify to create a more optimized version.
+
+// #if UNITY_EDITOR
+//             // Skip process and Exit early for ClientSim
+//             // since there is no play space to orient.
+//             player.TeleportTo(teleportPos, teleportRot);
+//             return;
+// #endif
+
+//             // teleportRot = Quaternion.Euler(0, teleportRot.eulerAngles.y, 0);
+
+//             //Get player pos/rot
+//             Vector3 playerPos = player.GetPosition();
+//             Quaternion playerRot = player.GetRotation();
+//             Quaternion invPlayerRot = Quaternion.Inverse(playerRot);
+
+//             //Get origin pos/rot
+//             VRCPlayerApi.TrackingData origin = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Origin);
+//             Vector3 originPos = origin.position;
+//             Quaternion originRot = origin.rotation;
+
+//             //Subtract player from origin in order to get the offset from the player to the origin
+//             //offset = origin - player
+//             Vector3 offsetPos = originPos - playerPos;
+//             Quaternion offsetRot = invPlayerRot * originRot;
+
+//             //Add the offset onto the destination in order to construct a pos/rot of where your origin would be in order to put the player at the destination
+//             //target = destination + offset
+//             Vector3 targetPos = teleportPos + teleportRot * invPlayerRot * offsetPos;
+//             Quaternion targetRot = teleportRot * offsetRot;
+
+//             //Apply teleportation
+//             player.TeleportTo(teleportPos, teleportRot, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+//             player.TeleportTo(teleportPos, targetRot, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+//             player.TeleportTo(
+//                 teleportPos,
+//                 Quaternion.Inverse(localPlayer.GetRotation()) * targetRot * targetRot,
+//                 VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint,
+//                 lerpOnRemote);
+//             // player.TeleportTo(targetPos, targetRot, VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint, lerpOnRemote);
+//         }
+
+        private void TeleportPlayerAndRoomAlignedCalcOffsetAfterTP(VRCPlayerApi player, Vector3 teleportPos, Quaternion teleportRot, bool lerpOnRemote)
+        {
+            //This could be simplified to have fewer intermediate variables, but separating it out like this makes it more readable for educational purposes.
+            //Feel free to modify to create a more optimized version.
+
+#if UNITY_EDITOR
+            // Skip process and Exit early for ClientSim
+            // since there is no play space to orient.
+            player.TeleportTo(teleportPos, teleportRot);
+            return;
+#endif
+
+            // teleportRot = Quaternion.Euler(0, teleportRot.eulerAngles.y, 0);
+
+            player.TeleportTo(teleportPos, teleportRot, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+
+            //Get player pos/rot
+            Vector3 playerPos = player.GetPosition();
+            Quaternion playerRot = player.GetRotation();
+            Quaternion invPlayerRot = Quaternion.Inverse(playerRot);
+
+            //Get origin pos/rot
+            VRCPlayerApi.TrackingData origin = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Origin);
+            Vector3 originPos = origin.position;
+            Quaternion originRot = origin.rotation;
+
+            //Subtract player from origin in order to get the offset from the player to the origin
+            //offset = origin - player
+            Vector3 offsetPos = originPos - playerPos;
+            Quaternion offsetRot = invPlayerRot * originRot;
+
+            //Add the offset onto the destination in order to construct a pos/rot of where your origin would be in order to put the player at the destination
+            //target = destination + offset
+            Vector3 targetPos = teleportPos + teleportRot * invPlayerRot * offsetPos;
+            Quaternion targetRot = teleportRot * offsetRot;
+
+            //Apply teleportation
+            player.TeleportTo(targetPos, targetRot, VRC_SceneDescriptor.SpawnOrientation.AlignRoomWithSpawnPoint, lerpOnRemote);
+        }
+
+        /// <summary>Handles quaternions where their forward vector is pointing straight up or down.</summary>
+        /// <returns>A quaternion purely rotating around the Y axis. If the given <paramref name="rotation"/>
+        /// was upside down, the result does not reflect as such. The "up" of the resulting rotation is always
+        /// equal to <see cref="Vector3.up"/>.</returns>
+        private Quaternion ProjectOntoYPlane(Quaternion rotation)
+        {
+            Vector3 projectedForward = Vector3.ProjectOnPlane(rotation * Vector3.forward, Vector3.up);
+            return projectedForward == Vector3.zero // Facing straight up or down?
+                ? Quaternion.LookRotation(rotation * Vector3.down) // Imagine a head facing staring up. The chin is down.
+                : Quaternion.LookRotation(projectedForward.normalized);
+        }
+
+        private void TeleportPlayerAlignedCorrectiveHead(VRCPlayerApi player, Vector3 teleportPosition, bool lerpOnRemote)
+        {
+            Quaternion playerRotation = player.GetRotation();
+            Quaternion preHeadRotation = ProjectOntoYPlane(player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).rotation);
+            player.TeleportTo(teleportPosition, playerRotation, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
+            Quaternion postHeadRotation = ProjectOntoYPlane(player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).rotation);
+            Quaternion headRotationOffset = Quaternion.Inverse(postHeadRotation) * preHeadRotation;
+            player.TeleportTo(teleportPosition, headRotationOffset * playerRotation, VRC_SceneDescriptor.SpawnOrientation.AlignPlayerWithSpawnPoint, lerpOnRemote);
         }
 
         /// <summary>
