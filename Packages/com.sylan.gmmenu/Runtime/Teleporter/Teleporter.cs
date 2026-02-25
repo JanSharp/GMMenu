@@ -30,7 +30,7 @@ namespace Sylan.GMMenu
             prevRot = Networking.LocalPlayer.GetRotation();
             if (playerMover.noclip) playerMover.station.position = teleportPos;
             Networking.LocalPlayer.TeleportTo(teleportPos, teleportRot, teleportOrientation);
-            GMMenuToggle.UpdateRotationPC(transform);
+            gmMenu.GMMenuToggle.UpdateRotationPC();
             SendTeleportEvent();
         }
         public void TeleportTo(Transform teleportTransform, SpawnOrientation teleportOrientation = SpawnOrientation.AlignPlayerWithSpawnPoint)
@@ -47,7 +47,7 @@ namespace Sylan.GMMenu
             Networking.LocalPlayer.TeleportTo(prevPos, prevRot);
             prevPos = playerPos;
             prevRot = playerRot;
-            GMMenuToggle.UpdateRotationPC(transform);
+            gmMenu.GMMenuToggle.UpdateRotationPC();
             SendTeleportEvent();
         }
         public void TeleportToPlayer(VRCPlayerApi player)
