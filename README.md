@@ -25,3 +25,8 @@ Features Include:
     1. Add the [AudioManager](https://github.com/SylanTroh/AudioManager) package to the project the same way as the GMMenu
     2. Create an empty game object in your scene and add an 'AudioSettingManager' component
     3. The presence of the audio manager automatically enables features depending on it
+
+# Update Log
+## Version 1.7.0
+- Made GMMenuToggle.UpdateRotationPC() a non-static function. It refers to the instance now to properly rotate the correct object. This also means that you should be able to put the GMMenu prefab wherever you want rather than in the root of the hierarchy.
+- Merged fix for pickups colliding with the menu.
