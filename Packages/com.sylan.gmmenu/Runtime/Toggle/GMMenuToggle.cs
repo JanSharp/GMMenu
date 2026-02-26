@@ -58,7 +58,7 @@ namespace Sylan.GMMenu
                 menuToggle = true;
                 Utils.CanvasUtils.CanvasSetActive(canvas, true);
                 if(inVR) MenuScale();
-                else UpdateRotationPC(transform);
+                else UpdateRotationPC();
                 SendMenuToggleOnEvent();
             }
         }
@@ -166,10 +166,10 @@ namespace Sylan.GMMenu
             var headlocation = Networking.LocalPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head);
             transform.parent.position = headlocation.position;
         }
-        public static void UpdateRotationPC(Transform self)
+        public void UpdateRotationPC()
         {
             var headlocation = Networking.LocalPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.Head);
-            self.root.rotation = Quaternion.Euler(0.0f, headlocation.rotation.eulerAngles.y, 0.0f);
+            gmMenu.transform.rotation = Quaternion.Euler(0.0f, headlocation.rotation.eulerAngles.y, 0.0f);
         }
         //Events
         private void SendMenuToggleOnEvent()
