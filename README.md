@@ -27,6 +27,10 @@ Features Include:
     3. The presence of the audio manager automatically enables features depending on it
 
 # Update Log
+
+## Version 1.7.1
+- Make whisper, yell and broadcast HUD icons render on top of avatars and world geometry, just like the rest of the HUD
+
 ## Version 1.7.0
 - Made GMMenuToggle.UpdateRotationPC() a non-static function. It refers to the instance now to properly rotate the correct object. This also means that you should be able to put the GMMenu prefab wherever you want rather than in the root of the hierarchy.
 - Merged fix for pickups colliding with the menu.
