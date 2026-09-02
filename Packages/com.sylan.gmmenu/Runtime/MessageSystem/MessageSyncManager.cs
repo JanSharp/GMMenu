@@ -1,19 +1,18 @@
-﻿
-using System;
-using System.Linq;
-using UdonSharp;
+﻿using UdonSharp;
 using UnityEngine;
+using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
-using VRC.Udon;
+using VRC.Udon.Common.Interfaces;
 
 namespace Sylan.GMMenu
 {
-    [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
+    [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
     public class MessageSyncManager : GMMenuPart
     {
         private MessageData[] messageData;
         private MessageData[] sortedMessages;
         private MessageData localMessage = null;
+        private const float EnsureHasLocalMessageLoopInterval = 2f;
         private UdonSharpBehaviour[] NewMessageEventListeners = new UdonSharpBehaviour[0];
 
         private void Start()
@@ -29,8 +28,14 @@ namespace Sylan.GMMenu
         {
             Debug.Log($"[GMMenu] Joined player: {MessageData.GetPlayerName(player)}, "
                 + $"MessageSyncManager owner: {MessageData.GetPlayerName(Networking.GetOwner(gameObject))}");
-            if (!Networking.IsOwner(gameObject)) return;
-            SetMessageOwnership(player);
+            if (Networking.IsOwner(gameObject))
+            {
+                SetMessageOwnership(player);
+            }
+            else if (player.isLocal)
+            {
+                SendCustomEventDelayedSeconds(nameof(EnsureLocalMessageDataGotAssignedLoop), EnsureHasLocalMessageLoopInterval);
+            }
         }
         private void SetMessageOwnership(VRCPlayerApi player)
         {
@@ -42,6 +47,34 @@ namespace Sylan.GMMenu
                 return;
             }
             Debug.LogError($"[GMMenu] Unable to assign MessageData script to {MessageData.GetPlayerName(player)}");
+        }
+        public void EnsureLocalMessageDataGotAssignedLoop()
+        {
+            if (GetMessageByOwner(Networking.LocalPlayer) != null) return;
+            SendCustomNetworkEvent(NetworkEventTarget.Owner, nameof(RequestReconfirmationOfMessageDataAssignment), Networking.LocalPlayer.playerId);
+            SendCustomEventDelayedSeconds(nameof(EnsureLocalMessageDataGotAssignedLoop), EnsureHasLocalMessageLoopInterval);
+        }
+        [NetworkCallable(maxEventsPerSecond: 20)]
+        public void RequestReconfirmationOfMessageDataAssignment(int playerId)
+        {
+            VRCPlayerApi player = VRCPlayerApi.GetPlayerById(playerId);
+            if (!Utilities.IsValid(player)) return;
+            MessageData message = GetMessageByOwner(player);
+            // VRChat is supposed to guarantee that every player is going to agree what the
+            // latest synced state of a script is.
+            // Turns out when requesting serialization at exactly around the time when a player joins,
+            // the synced data will be sent to all players, except sometimes not to the joining player.
+            if (message != null)
+            {
+                // Re-request serialization to work around the issue.
+                message.owner = player;
+            }
+            else
+            {
+                // Oh, they actually have no script assigned to them,
+                // might happen when the master left at an inopportune time.
+                SetMessageOwnership(player);
+            }
         }
         public override void OnPlayerLeft(VRCPlayerApi player)
         {
