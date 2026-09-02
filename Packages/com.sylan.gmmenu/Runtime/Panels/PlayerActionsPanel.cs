@@ -25,6 +25,7 @@ namespace Sylan.GMMenu
         }
         public void SetMessageEmergency()
         {
+            Debug.Log($"[GMMenu] PlayerActionsPanel {nameof(SetMessageEmergency)}");
             if (messageSyncManager.GetLocalMessageValue() == MessageData.MESSAGE_URGENT)
                 messageSyncManager.SetMessage(Networking.LocalPlayer, MessageData.MESSAGE_NULL);
             else
@@ -33,6 +34,7 @@ namespace Sylan.GMMenu
         }
         public void SetMessageRoll()
         {
+            Debug.Log($"[GMMenu] PlayerActionsPanel {nameof(SetMessageRoll)}");
             if (messageSyncManager.GetLocalMessageValue() == MessageData.MESSAGE_ROLL)
                 messageSyncManager.SetMessage(Networking.LocalPlayer, MessageData.MESSAGE_NULL);
             else
@@ -41,6 +43,7 @@ namespace Sylan.GMMenu
         }
         public void SetMessageQuestion()
         {
+            Debug.Log($"[GMMenu] PlayerActionsPanel {nameof(SetMessageQuestion)}");
             if (messageSyncManager.GetLocalMessageValue() == MessageData.MESSAGE_QUESTION)
                 messageSyncManager.SetMessage(Networking.LocalPlayer, MessageData.MESSAGE_NULL);
             else
@@ -49,6 +52,7 @@ namespace Sylan.GMMenu
         }
         public void SetMessageSilent()
         {
+            Debug.Log($"[GMMenu] PlayerActionsPanel {nameof(SetMessageSilent)}");
             if (messageSyncManager.GetLocalMessageValue() == MessageData.MESSAGE_SILENT)
                 messageSyncManager.SetMessage(Networking.LocalPlayer, MessageData.MESSAGE_NULL);
             else
@@ -57,6 +61,7 @@ namespace Sylan.GMMenu
         }
         public void SetMessageGMRadio()
         {
+            Debug.Log($"[GMMenu] PlayerActionsPanel {nameof(SetMessageGMRadio)}");
             if (messageSyncManager.GetLocalMessageValue() == MessageData.MESSAGE_GMRADIO)
                 messageSyncManager.SetMessage(Networking.LocalPlayer, MessageData.MESSAGE_NULL);
             else

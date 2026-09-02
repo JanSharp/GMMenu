@@ -44,7 +44,7 @@ namespace Sylan.GMMenu
         {
             set
             {
-                Debug.Log("Set Message Ownership");
+                Debug.Log($"[GMMenu] Assigning {name} to {GetPlayerName(value)}");
                 Networking.SetOwner(Networking.LocalPlayer, gameObject);
                 _owner = value;
                 if (!Utilities.IsValid(value))
@@ -53,13 +53,13 @@ namespace Sylan.GMMenu
                     message = MESSAGE_NULL;
                     timeReceived = TIME_NULL;
 
-                    RequestSerialization();
+                    RequestSerializationAndLog();
                     return;
                 }
                 var id = VRCPlayerApi.GetPlayerId(value);
                 if (id != _ownerID) message = MESSAGE_NULL;
                 _ownerID = id;
-                RequestSerialization();
+                RequestSerializationAndLog();
             }
             get => _owner;
         }
@@ -67,9 +67,10 @@ namespace Sylan.GMMenu
         {
             set
             {
-                Debug.Log("Set Message: " + value);
+                Debug.Log($"[GMMenu] Changing message from {MessageToString(_message)} "
+                    + $"to {MessageToString(value)} for {GetScriptDisplayName()}");
                 _message = value;
-                RequestSerialization();
+                RequestSerializationAndLog();
                 isReadLocal = false;
                 isReadRemote = false;
                 timeReceived = TIME_NULL;
@@ -111,6 +112,7 @@ namespace Sylan.GMMenu
         }
         public void SyncReadStatus(bool isRead)
         {
+            Debug.Log($"[GMMenu] {nameof(SyncReadStatus)} on {GetScriptDisplayName()}, isRead: {isRead}");
             isReadLocal = isRead;
             if (isReadRemote)
             {
@@ -137,8 +139,16 @@ namespace Sylan.GMMenu
             timeRead = TIME_NULL;
         }
         //Events
+        public override void OnPreSerialization()
+        {
+            Debug.Log($"[GMMenu] {nameof(OnPreSerialization)} on {GetScriptDisplayName()} with message {MessageToString(message)}");
+        }
         public override void OnDeserialization()
         {
+            Debug.Log($"[GMMenu] {nameof(OnDeserialization)} on {GetScriptDisplayName()}, "
+                + $"prev assigned to {GetPlayerName(_owner)}, "
+                + $"now assigned to {GetPlayerName(_ownerID == OWNER_NULL ? null : VRCPlayerApi.GetPlayerById(_ownerID))}, "
+                + $"message: {MessageToString(message)}");
             //Set _owner from synced _ownerID
             if (_ownerID == OWNER_NULL)
             {
@@ -149,15 +159,17 @@ namespace Sylan.GMMenu
         }
         public void SendOnNewMessageEvent()
         {
-            Debug.Log("[GMMenu]: OnNewMessage");
+            Debug.Log($"[GMMenu] Raising event due to new message from {GetScriptDisplayName()}");
             messageSyncManager.OnNewMessage(this);
         }
         public void SendOnReadRemoteEvent()
         {
+            Debug.Log($"[GMMenu] {nameof(SendOnReadRemoteEvent)} on {GetScriptDisplayName()}");
             SendCustomNetworkEvent(VRC.Udon.Common.Interfaces.NetworkEventTarget.All, nameof(OnReadRemote));
         }
         public void OnReadRemote()
         {
+            Debug.Log($"[GMMenu] {nameof(OnReadRemote)} on {GetScriptDisplayName()}");
             if (!isReadLocal) isReadRemote = true;
             messageSyncManager.SendMessageUpdateEvent();
             SetReadTime();
@@ -165,10 +177,12 @@ namespace Sylan.GMMenu
         }
         public void SendOnUndoReadRemoteEvent()
         {
+            Debug.Log($"[GMMenu] {nameof(SendOnUndoReadRemoteEvent)} on {GetScriptDisplayName()}");
             SendCustomNetworkEvent(VRC.Udon.Common.Interfaces.NetworkEventTarget.All, nameof(OnUndoReadRemote));
         }
         public void OnUndoReadRemote()
         {
+            Debug.Log($"[GMMenu] {nameof(OnUndoReadRemote)} on {GetScriptDisplayName()}");
             isReadRemote = false;
             if (isReadLocal) SendOnReadRemoteEvent();
             messageSyncManager.SendMessageUpdateEvent();
@@ -188,8 +202,56 @@ namespace Sylan.GMMenu
                 SendCustomEventDelayedSeconds(nameof(OnMessageStale), TIME_UNTIL_STALE - timePassed + 1.0f);
                 return;
             }
+            Debug.Log($"[GMMenu] Message turned stale for {GetScriptDisplayName()}");
             message = MESSAGE_NULL;
             messageSyncManager.SendMessageUpdateEvent();
+        }
+
+        private void RequestSerializationAndLog()
+        {
+            VRCPlayerApi networkingOwner = Networking.GetOwner(gameObject);
+            Debug.Log($"[GMMenu] Requesting to sync {GetScriptDisplayName()}, message: {MessageToString(message)}, "
+                + $"networking owner: {GetPlayerName(networkingOwner)} "
+                + $"- isLocal: {(Utilities.IsValid(networkingOwner) ? networkingOwner.isLocal.ToString() : "<null>")}");
+            RequestSerialization();
+        }
+
+        public override void OnOwnershipTransferred(VRCPlayerApi player)
+        {
+            Debug.Log($"[GMMenu] Networking ownership of {GetScriptDisplayName()} changed to {GetPlayerName(Networking.GetOwner(gameObject))}");
+        }
+
+        public static string MessageToString(int message)
+        {
+            switch (message)
+            {
+                case MESSAGE_NULL:
+                    return $"({message} | null)";
+                case MESSAGE_EMPTY:
+                    return $"({message} | empty)";
+                case MESSAGE_URGENT:
+                    return $"({message} | urgent)";
+                case MESSAGE_ROLL:
+                    return $"({message} | roll)";
+                case MESSAGE_QUESTION:
+                    return $"({message} | question)";
+                case MESSAGE_SILENT:
+                    return $"({message} | silent)";
+                case MESSAGE_GMRADIO:
+                    return $"({message} | gm radio)";
+                default:
+                    return $"({message} | undefined)";
+            }
+        }
+
+        public string GetScriptDisplayName()
+        {
+            return $"[{name} assigned to {GetPlayerName(owner)}]";
+        }
+
+        public static string GetPlayerName(VRCPlayerApi player)
+        {
+            return Utilities.IsValid(player) ? player.displayName : "<null>";
         }
     }
 }
