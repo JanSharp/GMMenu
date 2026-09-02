@@ -51,6 +51,8 @@ namespace Sylan.GMMenu
         public void EnsureLocalMessageDataGotAssignedLoop()
         {
             if (GetMessageByOwner(Networking.LocalPlayer) != null) return;
+            Debug.Log($"[GMMenu] No {nameof(MessageData)} has been assigned to us, request again. "
+                + $"MessageSyncManager owner: {MessageData.GetPlayerName(Networking.GetOwner(gameObject))}");
             SendCustomNetworkEvent(NetworkEventTarget.Owner, nameof(RequestReconfirmationOfMessageDataAssignment), Networking.LocalPlayer.playerId);
             SendCustomEventDelayedSeconds(nameof(EnsureLocalMessageDataGotAssignedLoop), EnsureHasLocalMessageLoopInterval);
         }
@@ -67,12 +69,16 @@ namespace Sylan.GMMenu
             if (message != null)
             {
                 // Re-request serialization to work around the issue.
+                Debug.LogError($"[GMMenu] Reconfirming assignment of {message.GetScriptDisplayName()}");
                 message.owner = player;
             }
             else
             {
                 // Oh, they actually have no script assigned to them,
                 // might happen when the master left at an inopportune time.
+                Debug.LogError($"[GMMenu] Master must have left at an inopportune time, "
+                    + $"{MessageData.GetPlayerName(player)} is asking for reconfirmation "
+                    + $"but no {nameof(MessageData)} is even assigned to them.");
                 SetMessageOwnership(player);
             }
         }
