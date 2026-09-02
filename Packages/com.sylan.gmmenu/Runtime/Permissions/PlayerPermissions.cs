@@ -159,7 +159,6 @@ namespace Sylan.GMMenu
         }
         public void SendPermissionUpdateEvent()
         {
-            Debug.Log("[GMMenu]: PermissionUpdateEvent");
             Utils.Events.SendEvent("OnPermissionUpdate", PermissionEventListeners);
         }
         public void AddListener(UdonSharpBehaviour b)
