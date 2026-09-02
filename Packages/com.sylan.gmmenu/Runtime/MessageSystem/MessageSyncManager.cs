@@ -71,7 +71,7 @@ namespace Sylan.GMMenu
         int CompareMessageTime(MessageData message1, MessageData message2)
         {
             if (message1.timeReceived == message2.timeReceived) return 0;
-            if(message1.timeReceived < message2.timeReceived) return -1;
+            if (message1.timeReceived < message2.timeReceived) return -1;
             return 1;
         }
         public MessageData[] GetMessages()
@@ -163,14 +163,14 @@ namespace Sylan.GMMenu
         }
         //Quicksort
         [RecursiveMethod]
-        private void QuickSortMessages(MessageData[] arr,int start, int end)
+        private void QuickSortMessages(MessageData[] arr, int start, int end)
         {
             if (!Utilities.IsValid(arr)) return;
 
             int i = 0;
             if (start < end)
             {
-                i = PartitionMessages(arr,start, end);
+                i = PartitionMessages(arr, start, end);
 
                 QuickSortMessages(arr, start, i - 1);
                 QuickSortMessages(arr, i + 1, end);
