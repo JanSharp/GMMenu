@@ -6,9 +6,8 @@ using VRC.Udon.Common.Interfaces;
 
 namespace Sylan.GMMenu
 {
-    // Apparently using NoVariableSync can cause for some people to be able to send networked events
-    // while for others VRChat complains that they cannot send networked events on sync mode none scripts.
-    // How.
+    // Apparently using NoVariableSync does not allow for sending network events,
+    // VRChat complains that it cannot send networked events on sync mode none scripts.
     [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class MessageSyncManager : GMMenuPart
     {
