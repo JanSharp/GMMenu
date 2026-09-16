@@ -14,7 +14,7 @@ namespace Sylan.GMMenu
         private MessageData[] messageData;
         private MessageData[] sortedMessages;
         private MessageData localMessage = null;
-        private const float EnsureHasLocalMessageLoopInterval = 2f;
+        private const float EnsureHasLocalMessageLoopInterval = 5f;
         private UdonSharpBehaviour[] NewMessageEventListeners = new UdonSharpBehaviour[0];
 
         private void Start()
