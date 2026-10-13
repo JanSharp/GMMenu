@@ -131,7 +131,7 @@ namespace Sylan.GMMenu
         {
             if (permissions.getPermissionLevel() < PlayerPermissions.PERMISSION_FACILITATOR) return;
             Debug.Log("[WatchCamera]: Updating Thumbnails");
-            playerIsUpdated = new bool[playerList.Length];
+            playerIsUpdated = new bool[playerIsUpdated.Length];
             UpdateThumbnail();
         }
         public void UpdateThumbnail()
