@@ -21,15 +21,9 @@ namespace Sylan.GMMenu
         {
             messageData = GetComponentsInChildren<MessageData>();
         }
-        public override void OnOwnershipTransferred(VRCPlayerApi player)
-        {
-            Debug.Log($"[GMMenu] Networking ownership of MessageSyncManager changed to {MessageData.GetPlayerName(Networking.GetOwner(gameObject))}");
-        }
         //Manage Message Data Ownership
         public override void OnPlayerJoined(VRCPlayerApi player)
         {
-            Debug.Log($"[GMMenu] Joined player: {MessageData.GetPlayerName(player)}, "
-                + $"MessageSyncManager owner: {MessageData.GetPlayerName(Networking.GetOwner(gameObject))}");
             if (Networking.IsOwner(gameObject))
             {
                 SetMessageOwnership(player);
@@ -48,7 +42,6 @@ namespace Sylan.GMMenu
                 m.owner = player;
                 return;
             }
-            Debug.LogError($"[GMMenu] Unable to assign MessageData script to {MessageData.GetPlayerName(player)}");
         }
         public void EnsureLocalMessageDataGotAssignedLoop()
         {
@@ -80,25 +73,17 @@ namespace Sylan.GMMenu
         }
         public override void OnPlayerLeft(VRCPlayerApi player)
         {
-            Debug.Log($"[GMMenu] Left player: {MessageData.GetPlayerName(player)}, "
-                + $"MessageSyncManager owner: {MessageData.GetPlayerName(Networking.GetOwner(gameObject))}");
             if (!Networking.IsOwner(gameObject)) return;
             RevokeMessageOwnership(player);
         }
         private void RevokeMessageOwnership(VRCPlayerApi player)
         {
-            int unassignedCount = 0;
             foreach (MessageData m in messageData)
             {
                 if (m.owner != player) continue;
 
                 m.owner = null;
-                unassignedCount++;
             }
-            if (unassignedCount == 0)
-                Debug.LogError($"[GMMenu] No MessageData script was even assigned to {MessageData.GetPlayerName(player)}");
-            else if (unassignedCount > 1)
-                Debug.LogError($"[GMMenu] More than 1 ({unassignedCount}) MessageData scripts were assigned to {MessageData.GetPlayerName(player)}");
         }
         //Get MessageData that belongs to a specific player, or a list of players
         public MessageData GetMessageByOwner(VRCPlayerApi player)
@@ -187,12 +172,7 @@ namespace Sylan.GMMenu
         public void SetMessage(VRCPlayerApi player, int message)
         {
             var m = GetMessageByOwner(player);
-            if (!Utilities.IsValid(m))
-            {
-                Debug.LogError($"[GMMenu] Attempt to {nameof(SetMessage)} for {MessageData.GetPlayerName(player)} to "
-                    + $"{MessageData.MessageToString(message)}, however no {nameof(MessageData)} is associated with this player.");
-                return;
-            }
+            if (!Utilities.IsValid(m)) return;
             Networking.SetOwner(Networking.LocalPlayer, m.gameObject);
             if (player.isLocal) localMessage = m;
             m.message = message;
